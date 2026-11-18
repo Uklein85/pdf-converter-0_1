@@ -388,6 +388,36 @@ def main():
     w.show()
     sys.exit(app.exec())
 
+def main():
+    app = QApplication(sys.argv)
+    app.setFont(QFont("Segoe UI", 10))
+    w = MainWindow()
+    w.show()
+    sys.exit(app.exec())
 
+
+if __name__ == "__main__":
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException:
+        import traceback
+        from pathlib import Path
+        tb = traceback.format_exc()
+        try:
+            log = Path(sys.executable if getattr(sys, "frozen", False)
+                       else __file__).resolve().parent / "error.log"
+            log.write_text(tb, encoding="utf-8")
+        except Exception:
+            log = None
+        try:
+            from PyQt6.QtWidgets import QApplication, QMessageBox
+            _app = QApplication.instance() or QApplication(sys.argv)
+            QMessageBox.critical(None, "DocumentOCR — ошибка запуска",
+                                 tb[-1800:] + (f"\n\nЛог: {log}" if log else ""))
+        except Exception:
+            print(tb)
+        sys.exit(1)
 if __name__ == "__main__":
     main()
