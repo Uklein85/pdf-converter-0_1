@@ -269,3 +269,60 @@ class OCREngineManager:
         if self.current_engine is None:
             return "", 0.0
         return self.current_engine.read_cell(crop)
+        # ============================================================
+# СОВМЕСТИМОСТЬ: единый поиск моделей + запрет скачивания.
+# Блок намеренно в конце файла - перекрывает старые определения.
+# ============================================================
+def get_models_dir():
+    """_MEIPASS (onefile) -> рядом с exe -> _internal -> папка проекта."""
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    if getattr(_sys, "frozen", False):
+        exe_dir = _Path(_sys.executable).resolve().parent
+        fallback = exe_dir / "ocr_models"
+        cands = []
+        mp = getattr(_sys, "_MEIPASS", None)
+        if mp:
+            cands.append(_Path(mp) / "ocr_models")
+        cands.append(exe_dir / "ocr_models")
+        cands.append(exe_dir / "_internal" / "ocr_models")
+    else:
+        here = _Path(__file__).resolve().parent
+        fallback = here / "ocr_models"
+        cands = [here / "ocr_models"]
+
+    for p in cands:
+        r = p / "rapidocr"
+        if r.is_dir() and any(r.glob("*.onnx")):
+            return p
+    for p in cands:
+        if p.is_dir():
+            return p
+    return fallback
+
+
+def ensure_rapidocr_models():
+    """Только проверка наличия. НИЧЕГО не скачивает (убирает HTTP 404)."""
+    from pathlib import Path as _Path
+
+    models_dir = _Path(get_models_dir()) / "rapidocr"
+    required = [
+        "ch_PP-OCRv4_det_infer.onnx",
+        "ch_PP-OCRv4_rec_infer.onnx",
+    ]
+    missing = [n for n in required
+               if not (models_dir / n).exists()
+               or (models_dir / n).stat().st_size < 500_000]
+    if missing:
+        raise FileNotFoundError(
+            "Нет моделей OCR: " + ", ".join(missing)
+            + " | папка: " + str(models_dir)
+            + " | запустите prepare_models.py перед сборкой"
+        )
+    return models_dir
+
+
+def models_root():
+    """Алиас для совместимости с новыми модулями."""
+    return get_models_dir()
